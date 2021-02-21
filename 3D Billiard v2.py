@@ -107,9 +107,23 @@ def reset():
 
 
 def validate(ball):
-    return not (vec(0, 0, R) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 0.5 * radius_of_ball or (
-            vec(0, R, 0) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 0.5 * radius_of_ball or (
-                   vec(R, 0, 0) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 0.5 * radius_of_ball
+    if (vec(R, 0, 0) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball:
+        return False
+    elif (vec(0, R, 0) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball:
+        return False
+    elif (vec(0, 0, R) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball:
+        return False
+    else:
+        return True
+
+
+"""
+# Don't work
+def validate(ball):
+    return not (vec(R, 0, 0) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball or \
+           (vec(0, R, 0) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball or \
+           (vec(0, 0, R) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball
+"""
 
 
 def move():
@@ -176,15 +190,16 @@ xy_pocket = cylinder()
 xz_pocket = cylinder()
 yz_pocket = cylinder()
 cue = cylinder()
+
 scene.append_to_caption("\nSelect coefficient of friction\n")
 """
 set_coefficients_of_friction = slider(value=coefficient_of_friction, max=0.999,
-                                      bind=lambda x: set_constant(coefficient_2=x.value))
-coefficient_of_elasticity_text = wtext(text=str(coefficient_of_elasticity))
-scene.append_to_caption("\nSelect coefficient of elasticity\n")
-set_coefficients_of_elasticity = slider(value=coefficient_of_friction, max=0.999,
-                                        bind=lambda x: set_constant(coefficient_1=x.value))
+                                      bind=lambda x: set_constant(coefficient_1=x.value))
 coefficient_of_friction_text = wtext(text=str(coefficient_of_friction))
+scene.append_to_caption("\nSelect coefficient of elasticity\n")
+set_coefficients_of_elasticity = slider(value=coefficient_of_elasticity, max=0.999,
+                                        bind=lambda x: set_constant(coefficient_2=x.value))
+coefficient_of_elasticity_text = wtext(text=str(coefficient_of_elasticity))
 scene.append_to_caption("\nSelect radius of balls\n")
 set_radius_of_ball = slider(value=radius_of_ball, max=30,
                             bind=lambda x: set_constant(radius=x.value))
@@ -211,7 +226,7 @@ while True:
             if (general_ball.pos - cue.pos).mag > radius_of_ball:
                 cue.pos -= cue.axis * 0.01
         if 'backspace' in keys:
-            general_ball.step = (general_ball.pos - cue.pos) * 0.5
+            general_ball.step = (general_ball.pos - cue.pos) * 0.49
             del_object(cue)
             in_game = True
     else:
