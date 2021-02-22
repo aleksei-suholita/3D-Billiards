@@ -12,12 +12,15 @@ class Ball(sphere):
             self.step = vec(0, 0, 0)
         self.in_game = True
 
-    def set_next_pos(self):
+    def set_next_pos(self, back=False):
         next_pos = self.pos + self.step
         perpendicular = cross(self.pos, self.step)
         tang = cross(self.pos, perpendicular)
         self.pos = next_pos.norm() * R
-        self.step = - tang.norm() * self.step.mag * coefficient_of_friction
+        if not back:
+            self.step = - tang.norm() * self.step.mag * coefficient_of_friction
+        else:
+            self.step = - tang.norm() * self.step.mag
 
 
 def cartesian_to_sphere(vel):
@@ -124,13 +127,13 @@ def reset():
 
 def validate(ball):
     if (vec(R, 0, 0) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball:
-        return False
+        return "yz"
     elif (vec(0, R, 0) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball:
-        return False
+        return "xz"
     elif (vec(0, 0, R) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball:
-        return False
+        return "xy"
     else:
-        return True
+        return False
 
 
 """
@@ -147,11 +150,15 @@ def move():
     balls.append(general_ball)
     general_ball.set_next_pos()
     for i in range(len(balls)):
-        if not validate(balls[i]):
+        validation = validate(balls[i])
+        if validation == "yz":
             balls[i].in_game = False
-            balls[i].pos = vec(0, 0, 0)
-            del_object(balls[i])
-        balls[i].set_next_pos()
+        elif validation == "xz":
+            balls[i].in_game = False
+        elif validation == "xy":
+            balls[i].in_game = False
+        else:
+            balls[i].set_next_pos()
     balls.pop()
 
     for i in check_collisions():
@@ -162,8 +169,8 @@ def move():
         first_ball.step = - first_ball.step * epsilon
         second_ball.step = - second_ball.step * epsilon
         while (second_ball.pos - first_ball.pos).mag <= 2 * radius_of_ball:
-            first_ball.set_next_pos()
-            second_ball.set_next_pos()
+            first_ball.set_next_pos(back=True)
+            second_ball.set_next_pos(back=True)
         first_ball.step = original_step_1
         second_ball.step = original_step_2
         center = vec((second_ball.pos.x + first_ball.pos.x) / 2,
@@ -197,8 +204,8 @@ next_coefficient_of_elasticity = 0.87
 standard_angle = 180 / (5000 * pi)
 balls = []
 vectors_vel = []
-scene = canvas(width=1440,
-               height=600,
+scene = canvas(width=800,
+               height=700,
                title="3D Billiards v2")
 earth = sphere(radius=radius_of_earth,
                color=color.green,
@@ -211,7 +218,11 @@ yz_pocket = cylinder()
 cue = cylinder()
 center = vec(0, 0, 0)
 
-scene.append_to_caption("\nSelect coefficient of friction\n")
+scene.append_to_caption(
+    "\nWelcome to the game 3D billiards. If there is a cue on the screen, you can move it with the up, down, left,\n"
+    "right buttons, press backspace to strike. You can also change the game parameters by moving the sliders, they\n"
+    "will change after pressing the 'play again' button. To rotate 'camera', drag with right button or Ctrl-drag.\n"
+    "To zoom, drag with middle button, or use scroll wheel.\n\nSelect coefficient of friction\n")
 
 set_coefficients_of_friction = slider(value=coefficient_of_friction, max=0.999,
                                       bind=lambda x: set_constant(coefficient_1=x.value))
