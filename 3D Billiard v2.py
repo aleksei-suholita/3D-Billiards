@@ -96,15 +96,21 @@ def del_object(*args):
 
 
 def reset():
-    global R, xy_pocket, xz_pocket, yz_pocket, pocket_radius, next_radius_of_ball, radius_of_ball, \
+    global R, xy_pocket, xz_pocket, yz_pocket, pocket_radius, next_radius_of_ball, radius_of_ball, xy, xz, yz, \
         next_coefficient_of_elasticity, next_coefficient_of_friction, coefficient_of_elasticity, \
         balls_count, balls, radius_of_ball, general_ball, cue, in_game, coefficient_of_friction
     del_object(xy_pocket, xz_pocket, yz_pocket, general_ball, *balls)
-    pocket_radius = radius_of_ball * 1.25
+    if "xy_pocket" in globals():
+        del_object()
     coefficient_of_elasticity = next_coefficient_of_elasticity
     coefficient_of_friction = next_coefficient_of_friction
     radius_of_ball = next_radius_of_ball
     R = radius_of_ball + radius_of_earth
+    pocket_radius = radius_of_ball * 1.25
+    xy = 1
+    xz = 1
+    yz = 1
+    scene.title = "3D Billiards v2"
     general_ball = Ball(theta_pos=pi / 2, phi_pos=pi / 4, radius=radius_of_ball, in_game=True)
     if 'cue' in globals():
         del_object(cue)
@@ -136,29 +142,32 @@ def validate(ball):
         return False
 
 
-"""
-# Don't work
-def validate(ball):
-    return not (vec(R, 0, 0) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball or \
-           (vec(0, R, 0) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball or \
-           (vec(0, 0, R) - vec(abs(ball.pos.x), abs(ball.pos.y), abs(ball.pos.z))).mag < 1.5 * radius_of_ball
-"""
-
-
 def move():
-    global balls, general_ball, center
+    global balls, general_ball, center, yz, xz, xy
     balls.append(general_ball)
-    general_ball.set_next_pos()
     for i in range(len(balls)):
         validation = validate(balls[i])
-        if validation == "yz":
-            balls[i].in_game = False
-        elif validation == "xz":
-            balls[i].in_game = False
-        elif validation == "xy":
-            balls[i].in_game = False
-        else:
-            balls[i].set_next_pos()
+        if balls[i].in_game:
+            if validation == "yz":
+                yz += 1
+                balls[i].step = vec(0, 0, 0)
+                balls[i].in_game = False
+                k = 0 if yz % 2 == 0 else -1
+                balls[i].pos = vec(k + radius_of_ball * (yz + k) * (-1) ** yz, 0, 0)
+            elif validation == "xz":
+                xz += 1
+                balls[i].step = vec(0, 0, 0)
+                balls[i].in_game = False
+                k = 0 if xz % 2 == 0 else -1
+                balls[i].pos = vec(0, k + radius_of_ball * (xz + k) * (-1) ** xz, 0)
+            elif validation == "xy":
+                xy += 1
+                balls[i].step = vec(0, 0, 0)
+                balls[i].in_game = False
+                k = 0 if xy % 2 == 0 else -1
+                balls[i].pos = vec(0, 0, k + radius_of_ball * (xy + k) * (-1) ** xy)
+            elif balls[i].in_game:
+                balls[i].set_next_pos()
     balls.pop()
 
     for i in check_collisions():
@@ -210,11 +219,14 @@ scene = canvas(width=800,
 earth = sphere(radius=radius_of_earth,
                color=color.green,
                opacity=0.25)
+xy_pocket = cylinder()
+yz_pocket = cylinder()
+xz_pocket = cylinder()
 general_ball = Ball(theta_pos=pi / 2, phi_pos=pi / 4)
 pocket_radius = 1.25 * radius_of_ball
-xy_pocket = cylinder()
-xz_pocket = cylinder()
-yz_pocket = cylinder()
+xy = 1
+xz = 1
+yz = 1
 cue = cylinder()
 center = vec(0, 0, 0)
 
