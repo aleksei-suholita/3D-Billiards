@@ -35,15 +35,24 @@ def moving():
     return max([i.step.mag for i in balls] + [general_ball.step.mag])
 
 
-def solve_plane(norm, v):
+def solve_plane(normal, vel):
     global center
-    t = -((norm.x * v.x + norm.y * v.y + norm.z * v.z + norm.x * -center.x + norm.y * -center.y + norm.z * -center.z) /
-          (norm.x ** 2 + norm.y ** 2 + norm.z ** 2))
-    return vec(norm.x * t + v.x, norm.y * t + v.y, norm.z * t + v.z)
+    t = -((normal.x * vel.x + normal.y * vel.y + normal.z * vel.z + normal.x * -center.x +
+           normal.y * -center.y + normal.z * -center.z) /
+          (normal.x ** 2 + normal.y ** 2 + normal.z ** 2))
+    return vec(normal.x * t + vel.x, normal.y * t + vel.y, normal.z * t + vel.z)
 
 
 def direction(a, b):
     return vec(b.x - a.x, b.y - a.y, b.z - a.z)
+
+
+def generate_cue():
+    global cue
+    cue = cylinder(pos=general_ball.pos,
+                   axis=vector(1, 1, (general_ball.pos.x +
+                                      general_ball.pos.y) / -general_ball.pos.z).norm() * radius_of_ball * 15,
+                   radius=radius_of_ball * 0.1, color=color.orange)
 
 
 def check_collisions():
@@ -53,26 +62,28 @@ def check_collisions():
     for i in range(len(balls)):
         if balls[i].in_game:
             for j in range(i + 1, len(balls)):
-                if sqrt((balls[i].pos.x - balls[j].pos.x) ** 2 +
-                        (balls[i].pos.y - balls[j].pos.y) ** 2 +
-                        (balls[i].pos.z - balls[j].pos.z) ** 2) <= radius_of_ball * 2:
-                    hits.append([balls[i], balls[j]])
+                if balls[j].in_game:
+                    if sqrt((balls[i].pos.x - balls[j].pos.x) ** 2 +
+                            (balls[i].pos.y - balls[j].pos.y) ** 2 +
+                            (balls[i].pos.z - balls[j].pos.z) ** 2) <= radius_of_ball * 2:
+                        hits.append([balls[i], balls[j]])
     balls.pop()
     return hits
 
 
 def set_constant(radius=None, coefficient_1=None, coefficient_2=None):
-    global R, coefficient_of_friction, coefficient_of_elasticity, radius_of_ball, \
-        radius_of_ball_text, coefficient_of_friction_text, coefficient_of_elasticity_text
+    global coefficient_of_friction, coefficient_of_elasticity, radius_of_ball, next_radius_of_ball, \
+        next_coefficient_of_elasticity, radius_of_ball_text, coefficient_of_friction_text, \
+        coefficient_of_elasticity_text, next_coefficient_of_friction
+
     if radius is not None:
-        radius_of_ball = radius
-        R = radius + radius_of_earth
+        next_radius_of_ball = radius
         radius_of_ball_text.text = str(radius)
     if coefficient_1 is not None:
-        coefficient_of_friction = coefficient_1
+        next_coefficient_of_friction = coefficient_1
         coefficient_of_friction_text.text = str(coefficient_1)
     if coefficient_2 is not None:
-        coefficient_of_elasticity = coefficient_2
+        next_coefficient_of_elasticity = coefficient_2
         coefficient_of_elasticity_text.text = str(coefficient_2)
 
 
@@ -82,23 +93,28 @@ def del_object(*args):
 
 
 def reset():
-    global xy_pocket, xz_pocket, yz_pocket, pocket_radius, balls_count, balls, radius_of_ball, general_ball, cue, in_game
+    global R, xy_pocket, xz_pocket, yz_pocket, pocket_radius, next_radius_of_ball, radius_of_ball, \
+        next_coefficient_of_elasticity, next_coefficient_of_friction, coefficient_of_elasticity, \
+        balls_count, balls, radius_of_ball, general_ball, cue, in_game, coefficient_of_friction
     del_object(xy_pocket, xz_pocket, yz_pocket, general_ball, *balls)
-    if not in_game:
-        del_object(cue)
-    in_game = False
     pocket_radius = radius_of_ball * 1.25
-    general_ball = Ball(theta_pos=pi / 2, phi_pos=pi / 4, radius=radius_of_ball)
-    cue = cylinder(pos=general_ball.pos,
-                   axis=vector(1, 1, (general_ball.pos.x + general_ball.pos.y) / general_ball.pos.z).norm() *
-                        radius_of_ball * 15,
-                   radius=radius_of_ball * 0.1, color=color.orange)
+    coefficient_of_elasticity = next_coefficient_of_elasticity
+    coefficient_of_friction = next_coefficient_of_friction
+    radius_of_ball = next_radius_of_ball
+    R = radius_of_ball + radius_of_earth
+    general_ball = Ball(theta_pos=pi / 2, phi_pos=pi / 4, radius=radius_of_ball, in_game=True)
+    if 'cue' in globals():
+        del_object(cue)
+        del cue
+    generate_cue()
+    in_game = False
     xy_pocket = cylinder(radius=pocket_radius, pos=vec(0, 0, radius_of_earth),
                          axis=vec(0, 0, -radius_of_earth * 2), opacity=0.1, color=color.green)
     xz_pocket = cylinder(radius=pocket_radius, pos=vec(0, radius_of_earth, 0),
                          axis=vec(0, -radius_of_earth * 2, 0), opacity=0.1, color=color.green)
     yz_pocket = cylinder(radius=pocket_radius, pos=vec(radius_of_earth, 0, 0),
                          axis=vec(- radius_of_earth * 2, 0, 0), opacity=0.1, color=color.green)
+    balls = []
     for i in range(balls_count - 1):
         balls.append(Ball(phi_pos=round(((360 * i // balls_count + 2) * pi / 180), dig),
                           theta_pos=round(round(pi / 2 if i % 2 == 0 else 3 * pi / 2, dig)),
@@ -127,7 +143,7 @@ def validate(ball):
 
 
 def move():
-    global balls, general_ball
+    global balls, general_ball, center
     balls.append(general_ball)
     general_ball.set_next_pos()
     for i in range(len(balls)):
@@ -150,7 +166,6 @@ def move():
             second_ball.set_next_pos()
         first_ball.step = original_step_1
         second_ball.step = original_step_2
-        global center
         center = vec((second_ball.pos.x + first_ball.pos.x) / 2,
                      (second_ball.pos.y + first_ball.pos.y) / 2,
                      (second_ball.pos.z + first_ball.pos.z) / 2)
@@ -172,15 +187,19 @@ dig = 10  # Value to round
 balls_count = 11
 radius_of_earth = 370
 radius_of_ball = 30
+next_radius_of_ball = 30
 R = radius_of_earth + radius_of_ball
 epsilon = 0.01
 coefficient_of_friction = 0.996
+next_coefficient_of_friction = 0.996
 coefficient_of_elasticity = 0.87
+next_coefficient_of_elasticity = 0.87
 standard_angle = 180 / (5000 * pi)
 balls = []
 vectors_vel = []
 scene = canvas(width=1440,
-               height=600)
+               height=600,
+               title="3D Billiards v2")
 earth = sphere(radius=radius_of_earth,
                color=color.green,
                opacity=0.25)
@@ -190,9 +209,10 @@ xy_pocket = cylinder()
 xz_pocket = cylinder()
 yz_pocket = cylinder()
 cue = cylinder()
+center = vec(0, 0, 0)
 
 scene.append_to_caption("\nSelect coefficient of friction\n")
-"""
+
 set_coefficients_of_friction = slider(value=coefficient_of_friction, max=0.999,
                                       bind=lambda x: set_constant(coefficient_1=x.value))
 coefficient_of_friction_text = wtext(text=str(coefficient_of_friction))
@@ -205,7 +225,8 @@ set_radius_of_ball = slider(value=radius_of_ball, max=30,
                             bind=lambda x: set_constant(radius=x.value))
 radius_of_ball_text = wtext(text=str(radius_of_ball))
 scene.append_to_caption("\n")
-"""
+reset_button = button(text="play again", bind=reset)
+
 scene.up = vector(0, 0, 1)
 scene.camera.pos = vector(660, 660, 500)
 scene.camera.axis = vector(-660, -660, -500)
@@ -228,15 +249,16 @@ while True:
         if 'backspace' in keys:
             general_ball.step = (general_ball.pos - cue.pos) * 0.49
             del_object(cue)
+            del cue
             in_game = True
     else:
-        del cue
         while moving() > 0.1:
             rate(80)
             move()
         else:
-            cue = cylinder(pos=general_ball.pos,
-                           axis=vector(1, 1,
-                                       (general_ball.pos.x + general_ball.pos.y) / -general_ball.pos.z).norm() *
-                                radius_of_ball * 15, radius=radius_of_ball * 0.1, color=color.orange)
-            in_game = False
+            if general_ball.in_game:
+                if "cue" not in globals():
+                    generate_cue()
+                in_game = False
+            else:
+                scene.title = "Game over"
