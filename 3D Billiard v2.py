@@ -1,4 +1,5 @@
-from vpython import *
+from vpython import sphere, vec, sin, cos, cross, cylinder, color, sqrt, pi, canvas, slider, wtext, button, rate, \
+    keysdown
 
 
 class Ball(sphere):
@@ -21,11 +22,6 @@ class Ball(sphere):
             self.step = - tang.norm() * self.step.mag * coefficient_of_friction
         else:
             self.step = - tang.norm() * self.step.mag
-
-
-def cartesian_to_sphere(vel):
-    global R
-    return vec(R, acos(vel.z / R), atan(vel.y / vel.x))
 
 
 def sphere_to_cartesian(theta, phi):
@@ -53,8 +49,8 @@ def direction(a, b):
 def generate_cue():
     global cue
     cue = cylinder(pos=general_ball.pos,
-                   axis=vector(1, 1, (general_ball.pos.x +
-                                      general_ball.pos.y) / -general_ball.pos.z).norm() * radius_of_ball * 15,
+                   axis=vec(1, 1, (general_ball.pos.x +
+                                   general_ball.pos.y) / -general_ball.pos.z).norm() * radius_of_ball * 15,
                    radius=radius_of_ball * 0.1, color=color.orange)
 
 
@@ -65,11 +61,10 @@ def check_collisions():
     for i in range(len(balls)):
         if balls[i].in_game:
             for j in range(i + 1, len(balls)):
-                if balls[j].in_game:
-                    if sqrt((balls[i].pos.x - balls[j].pos.x) ** 2 +
-                            (balls[i].pos.y - balls[j].pos.y) ** 2 +
-                            (balls[i].pos.z - balls[j].pos.z) ** 2) <= radius_of_ball * 2:
-                        hits.append([balls[i], balls[j]])
+                if balls[j].in_game and sqrt((balls[i].pos.x - balls[j].pos.x) ** 2 +
+                                             (balls[i].pos.y - balls[j].pos.y) ** 2 +
+                                             (balls[i].pos.z - balls[j].pos.z) ** 2) <= radius_of_ball * 2:
+                    hits.append([balls[i], balls[j]])
     balls.pop()
     return hits
 
@@ -128,7 +123,7 @@ def reset():
         balls.append(Ball(phi_pos=round(((360 * i // balls_count + 2) * pi / 180), dig),
                           theta_pos=round(round(pi / 2 if i % 2 == 0 else 3 * pi / 2, dig)),
                           radius=radius_of_ball,
-                          color=vec(vector((i + 1) / balls_count, 0, 0))))
+                          color=vec(vec((i + 1) / balls_count, 0, 0))))
 
 
 def validate(ball):
@@ -250,9 +245,9 @@ radius_of_ball_text = wtext(text=str(radius_of_ball))
 scene.append_to_caption("\n")
 reset_button = button(text="play again", bind=reset)
 
-scene.up = vector(0, 0, 1)
-scene.camera.pos = vector(660, 660, 500)
-scene.camera.axis = vector(-660, -660, -500)
+scene.up = vec(0, 0, 1)
+scene.camera.pos = vec(660, 660, 500)
+scene.camera.axis = vec(-660, -660, -500)
 in_game = False
 reset()
 while True:
@@ -263,12 +258,10 @@ while True:
             cue.rotate(angle=standard_angle, axis=general_ball.pos, origin=general_ball.pos)
         if 'right' in keys:
             cue.rotate(angle=-standard_angle, axis=general_ball.pos, origin=general_ball.pos)
-        if 'up' in keys:
-            if (general_ball.pos - cue.pos).mag < 4 * radius_of_ball:
-                cue.pos += cue.axis * 0.01
-        if 'down' in keys:
-            if (general_ball.pos - cue.pos).mag > radius_of_ball:
-                cue.pos -= cue.axis * 0.01
+        if 'up' in keys and (general_ball.pos - cue.pos).mag < 4 * radius_of_ball:
+            cue.pos += cue.axis * 0.01
+        if 'down' in keys and (general_ball.pos - cue.pos).mag > radius_of_ball:
+            cue.pos -= cue.axis * 0.01
         if 'backspace' in keys:
             general_ball.step = (general_ball.pos - cue.pos) * 0.49
             del_object(cue)
@@ -278,10 +271,9 @@ while True:
         while moving() > 0.1:
             rate(80)
             move()
+        if general_ball.in_game:
+            if "cue" not in globals():
+                generate_cue()
+            in_game = False
         else:
-            if general_ball.in_game:
-                if "cue" not in globals():
-                    generate_cue()
-                in_game = False
-            else:
-                scene.title = "Game over"
+            scene.title = "Game over"

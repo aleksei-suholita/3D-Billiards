@@ -1,4 +1,5 @@
-from vpython import *
+from vpython import sphere, vec, sin, cos, cross, cylinder, color, sqrt, shapes, pi, extrusion, textures, canvas, \
+    slider, wtext, button, rate, keysdown
 
 
 class Ball(sphere):
@@ -54,7 +55,7 @@ def direction(a, b):
 def generate_cue():
     global cue
     cue = cylinder(pos=general_ball.pos,
-                   axis=vector(0, 0, 1) * radius_of_ball * 15,
+                   axis=vec(0, 0, 1) * radius_of_ball * 15,
                    radius=radius_of_ball * 0.1, color=color.orange)
 
 
@@ -65,11 +66,10 @@ def check_collisions():
     for i in range(len(balls)):
         if balls[i].in_game:
             for j in range(i + 1, len(balls)):
-                if balls[j].in_game:
-                    if sqrt((balls[i].pos.x - balls[j].pos.x) ** 2 +
-                            (balls[i].pos.y - balls[j].pos.y) ** 2 +
-                            (balls[i].pos.z - balls[j].pos.z) ** 2) <= radius_of_ball * 2:
-                        hits.append([balls[i], balls[j]])
+                if balls[j].in_game and sqrt((balls[i].pos.x - balls[j].pos.x) ** 2 +
+                                             (balls[i].pos.y - balls[j].pos.y) ** 2 +
+                                             (balls[i].pos.z - balls[j].pos.z) ** 2) <= radius_of_ball * 2:
+                    hits.append([balls[i], balls[j]])
     balls.pop()
     return hits
 
@@ -110,15 +110,18 @@ def reset():
     circle = shapes.circle(radius=radius_of_earth + radius_of_ball * 3.2)
     positions = []
     pocket_positions = []
-    for i in range(6):
-        new_position = ball_pos(round((360 * i * 2 // balls_count + 2) * pi / 180), 0)
-        pocket_positions.append(vec(new_position.x, new_position.y, L * (-1 ** i)))
+    angle = (2 * pi) / 3
+    for _ in range(3):
+        new_position = ball_pos(angle, 0)
+        new_real_position = ball_pos(angle + pi / 3, 0)
+        pocket_positions.append([new_real_position.x, new_real_position.y])
         positions.append(shapes.rectangle(height=pocket_radius * 2, width=pocket_radius * 2,
-                                          rotate=round((360 * i * 2 // balls_count + 2) * pi / 180),
-                                          pos=[new_position.x * 1.01, new_position.y * 1.01]))
-    pocket_top = extrusion(path=[vec(0, 0, L * 1.01), vec(0, 0, L * 1.05)], shape=[circle, *positions[::2]],
+                                          pos=[new_position.x, new_position.y],
+                                          rotate=angle))
+        angle += (2 * pi) / 3
+    pocket_top = extrusion(path=[vec(0, 0, L * 1.01), vec(0, 0, L * 1.05)], shape=[circle, *positions],
                            texture=textures.wood, opacity=0.7)
-    pocket_bottom = extrusion(path=[vec(0, 0, -L * 1.01), vec(0, 0, -L * 1.05)], shape=[circle, *positions[1::2]],
+    pocket_bottom = extrusion(path=[vec(0, 0, -L * 1.05), vec(0, 0, -L * 1.01)], shape=[circle, *positions],
                               texture=textures.wood, opacity=0.7)
     scene.title = "3D Billiards v2"
     general_ball = Ball(phi_pos=pi / 4, z=0, radius=radius_of_ball, in_game=True)
@@ -132,34 +135,32 @@ def reset():
         balls.append(Ball(phi_pos=round(((360 * i // balls_count + 2) * pi / 180), dig),
                           z=-L / 2 if i % 2 == 0 else L / 2,
                           radius=radius_of_ball,
-                          color=vec(vector((i + 1) / balls_count, 0, 0))))
+                          color=vec(vec((i + 1) / balls_count, 0, 0))))
 
 
 def validate(ball):
     global pocket_positions
     for i in pocket_positions:
-        if (i - ball.pos).mag < radius_of_ball:
+        if sqrt((i[0] - ball.pos.x) ** 2 + (i[1] - ball.pos.y) ** 2) < radius_of_ball * 1.1:
             return False
-    else:
-        return True
+    return True
 
 
 def move():
     global balls, general_ball, center
     balls.append(general_ball)
     for i in range(len(balls)):
-        if balls[i].in_game:
+        if balls[i].in_game and abs(balls[i].pos.z) > L - radius_of_ball:
             if validate(balls[i]):
-                if abs(balls[i].pos.z) > L - radius_of_ball:
-                    if balls[i].pos.z < 0:
-                        balls[i].step.z = abs(balls[i].step.z) * 0.56
-                    else:
-                        balls[i].step.z = -abs(balls[i].step.z) * 0.56
-                balls[i].set_next_pos()
+                if balls[i].pos.z < 0:
+                    balls[i].step.z = abs(balls[i].step.z) * 0.56
+                else:
+                    balls[i].step.z = -abs(balls[i].step.z) * 0.56
             else:
                 del_object(balls[i])
                 balls[i].step = vec(0, 0, 0)
                 balls[i].in_game = False
+            balls[i].set_next_pos()
     balls.pop()
 
     for i in check_collisions():
@@ -208,7 +209,7 @@ balls = []
 vectors_vel = []
 scene = canvas(width=800,
                height=700,
-               title="3D Billiards v2")
+               title="3D Cylinder Billiards")
 earth = cylinder(pos=vec(0, 0, -L), axis=vec(0, 0, 2 * L), radius=radius_of_earth, opacity=0.3, color=color.green)
 general_ball = Ball(phi_pos=pi / 4, z=0)
 circle = shapes.circle()
@@ -236,9 +237,9 @@ set_radius_of_ball = slider(value=radius_of_ball, max=30,
 radius_of_ball_text = wtext(text=str(radius_of_ball))
 scene.append_to_caption("\n")
 reset_button = button(text="play again", bind=reset)
-scene.up = vector(0, 0, 1)
-scene.camera.pos = vector(660, 660, 500)
-scene.camera.axis = vector(-660, -660, -500)
+scene.up = vec(0, 0, 1)
+scene.camera.pos = vec(660, 660, 500)
+scene.camera.axis = vec(-660, -660, -500)
 in_game = False
 reset()
 while True:
@@ -246,15 +247,15 @@ while True:
     keys = keysdown()
     if not in_game:
         if 'left' in keys:
-            cue.rotate(angle=standard_angle, axis=general_ball.pos, origin=general_ball.pos)
+            cue.rotate(angle=standard_angle, axis=vec(general_ball.pos.x, general_ball.pos.y, 0),
+                       origin=general_ball.pos)
         if 'right' in keys:
-            cue.rotate(angle=-standard_angle, axis=general_ball.pos, origin=general_ball.pos)
-        if 'up' in keys:
-            if (general_ball.pos - cue.pos).mag < 4 * radius_of_ball:
-                cue.pos += cue.axis * 0.01
-        if 'down' in keys:
-            if (general_ball.pos - cue.pos).mag > radius_of_ball:
-                cue.pos -= cue.axis * 0.01
+            cue.rotate(angle=-standard_angle, axis=vec(general_ball.pos.x, general_ball.pos.y, 0),
+                       origin=general_ball.pos)
+        if 'up' in keys and (general_ball.pos - cue.pos).mag < 4 * radius_of_ball:
+            cue.pos += cue.axis * 0.01
+        if 'down' in keys and (general_ball.pos - cue.pos).mag > radius_of_ball:
+            cue.pos -= cue.axis * 0.01
         if 'backspace' in keys:
             general_ball.step = (general_ball.pos - cue.pos) * 0.49
             del_object(cue)
@@ -264,10 +265,9 @@ while True:
         while moving() > 0.1:
             rate(80)
             move()
+        if general_ball.in_game:
+            if "cue" not in globals():
+                generate_cue()
+            in_game = False
         else:
-            if general_ball.in_game:
-                if "cue" not in globals():
-                    generate_cue()
-                in_game = False
-            else:
-                scene.title = "Game over"
+            scene.title = "Game over"
